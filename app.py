@@ -126,7 +126,8 @@ def neural_style_transfer(content_img, style_img, style_weight=1e6, content_weig
     try:
         if model_type == 'vit':
             try:
-                from models.vit_model import TransformerFeatures, VGGFeatures
+                from models.vit_model import TransformerFeatures
+                from models.cnn_model import VGGFeatures
                 
                 vit_feature_extractor = TransformerFeatures().to(device)
                 vgg_feature_extractor = VGGFeatures().to(device)
@@ -144,6 +145,7 @@ def neural_style_transfer(content_img, style_img, style_weight=1e6, content_weig
                 print(f"Error initializing ViT for direct transfer: {e}")
                 print("Falling back to CNN model")
                 model_type = 'cnn'
+                from models.cnn_model import VGGFeatures
                 feature_extractor = VGGFeatures().to(device)
                 
                 with torch.no_grad():
@@ -152,6 +154,7 @@ def neural_style_transfer(content_img, style_img, style_weight=1e6, content_weig
                     
                     style_grams = [gram_matrix(sf) for sf in style_features]
         else:
+            from models.cnn_model import VGGFeatures
             feature_extractor = VGGFeatures().to(device)
             
             with torch.no_grad():
