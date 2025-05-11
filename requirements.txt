@@ -1,0 +1,10 @@
+flask==2.0.1
+torch>=2.6.0
+torchvision>=0.15.0
+numpy>=1.26.0
+Pillow>=9.5.0
+transformers>=4.28.1
+timm>=0.6.13
+tqdm>=4.64.1
+werkzeug==2.0.3
+opencv-python>=4.7.0 

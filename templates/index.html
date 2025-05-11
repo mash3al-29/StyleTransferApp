@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neural Style Transfer</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            color: white;
+            padding: 2rem 0;
+            margin-bottom: 2rem;
+            border-radius: 0 0 10px 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-container {
+            background-color: white;
+            border-radius: 10px;
+            padding: 2rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .upload-container {
+            border: 2px dashed #dee2e6;
+            border-radius: 10px;
+            padding: 2rem;
+            text-align: center;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .upload-container:hover {
+            border-color: #6c757d;
+        }
+
+        .preview-container {
+            display: flex;
+            justify-content: space-around;
+            flex-wrap: wrap;
+            margin: 2rem 0;
+        }
+
+        .preview-item {
+            margin: 1rem;
+            text-align: center;
+        }
+
+        .preview-image {
+            width: 256px;
+            height: 256px;
+            object-fit: cover;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .result-container {
+            text-align: center;
+            margin-top: 2rem;
+            padding: 2rem;
+            border-radius: 10px;
+            background-color: #f8f9fa;
+        }
+
+        .result-image {
+            max-width: 100%;
+            max-height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .loader {
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid #3498db;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 2s linear infinite;
+            margin: 20px auto;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .footer {
+            background-color: #343a40;
+            color: white;
+            padding: 1.5rem 0;
+            text-align: center;
+            border-radius: 10px 10px 0 0;
+            margin-top: 2rem;
+        }
+
+        .slider-container {
+            margin: 2rem 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .model-toggle {
+            display: flex;
+            justify-content: center;
+            margin: 1rem 0;
+        }
+
+        .model-toggle .btn {
+            width: 120px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="container">
+            <h1 class="text-center">Neural Style Transfer</h1>
+            <p class="text-center">Upload a content image and a style image to create a stylized artwork</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-container">
+            <h2 class="text-center mb-4">Image Upload</h2>
+
+            <form id="stylizeForm" enctype="multipart/form-data">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="upload-container" id="contentUpload">
+                            <h4>Content Image</h4>
+                            <p>Upload the image to stylize</p>
+                            <input type="file" class="form-control" id="contentImage" name="content_image"
+                                accept="image/*" required>
+                            <div class="mt-3">
+                                <img id="contentPreview" class="preview-image hidden" alt="Content Preview">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="upload-container" id="styleUpload">
+                            <h4>Style Image</h4>
+                            <p>Upload the style reference</p>
+                            <input type="file" class="form-control" id="styleImage" name="style_image" accept="image/*"
+                                required>
+                            <div class="mt-3">
+                                <img id="stylePreview" class="preview-image hidden" alt="Style Preview">
+                            </div>
+                            <div id="styleUploadMessage"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="slider-container">
+                    <label for="styleThreshold" class="form-label">Style Intensity: <span
+                            id="thresholdValue">0.5</span></label>
+                    <input type="range" class="form-range" id="styleThreshold" name="style_threshold" min="0.1"
+                        max="1.0" step="0.1" value="0.5">
+                    <small class="form-text text-muted">Higher values apply more of the style image's aesthetic, while
+                        lower values preserve more of the content image's details.</small>
+                </div>
+
+                <div class="transfer-method-toggle mb-3">
+                    <label class="form-label">Style Transfer Method:</label>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="transfer_method" id="directTransfer"
+                            value="direct" checked>
+                        <label class="form-check-label" for="directTransfer">
+                            <strong>Direct Style Transfer</strong> - Uses the exact style image you upload (slower but
+                            more accurate)
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="transfer_method" id="pretrainedTransfer"
+                            value="pretrained">
+                        <label class="form-check-label" for="pretrainedTransfer">
+                            <strong>Pre-trained Model</strong> - Faster but uses New Realism style (no style image
+                            needed)
+                        </label>
+                    </div>
+                </div>
+
+                <div class="model-toggle">
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="model_type" id="cnnModel" value="cnn" checked>
+                        <label class="btn btn-outline-primary" for="cnnModel">CNN Model</label>
+
+                        <input type="radio" class="btn-check" name="model_type" id="vitModel" value="vit">
+                        <label class="btn btn-outline-primary" for="vitModel">ViT Model</label>
+                    </div>
+                </div>
+
+                <div class="text-center mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg" id="stylizeButton">Generate Stylized
+                        Image</button>
+                </div>
+            </form>
+
+            <div id="loaderContainer" class="text-center hidden">
+                <div class="loader"></div>
+                <p>Processing your images using neural style transfer... This may take up to a minute.</p>
+                <p class="text-muted">The algorithm is optimizing your image in real-time to match the style.</p>
+                <div class="progress mt-3" style="height: 20px;">
+                    <div id="progressBar" class="progress-bar progress-bar-striped progress-bar-animated"
+                        role="progressbar" style="width: 0%"></div>
+                </div>
+                <p id="progressText" class="mt-2">Initializing style transfer...</p>
+            </div>
+
+            <div id="resultContainer" class="result-container hidden">
+                <h3>Stylized Result</h3>
+                <img id="resultImage" class="result-image" alt="Stylized Result">
+                <div id="stylizationDetails" class="mt-2 mb-3 text-muted"></div>
+                <div class="mt-3">
+                    <a id="downloadLink" class="btn btn-success" download="stylized_image.jpg">Download Result</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="main-container">
+            <h2 class="text-center mb-4">About Neural Style Transfer</h2>
+            <p>Neural Style Transfer is an AI technique that combines the content of one image with the style of
+                another. It was first introduced by Gatys et al. in their paper "Image Style Transfer Using
+                Convolutional Neural Networks" (2016).</p>
+
+            <h4>Style Transfer Methods</h4>
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            Direct Style Transfer
+                        </div>
+                        <div class="card-body">
+                            <p>This method performs real-time optimization to transfer the style from your uploaded
+                                image:</p>
+                            <ul>
+                                <li>Uses your exact style image for transfer</li>
+                                <li>Optimizes each pixel to match content and style</li>
+                                <li>Takes longer but produces more accurate results</li>
+                                <li>Best for using specific style images</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card h-100">
+                        <div class="card-header bg-success text-white">
+                            Pre-trained Model
+                        </div>
+                        <div class="card-body">
+                            <p>This method uses our pre-trained neural network:</p>
+                            <ul>
+                                <li>Faster processing (nearly instant)</li>
+                                <li>Trained on New Realism paintings</li>
+                                <li>May blend your style with New Realism aesthetics</li>
+                                <li>Best for quick results with New Realism style</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <h4 class="mt-4">Model Options</h4>
+            <p>Our implementation offers two different models for feature extraction:</p>
+            <ul>
+                <li><strong>CNN Model</strong>: Uses VGG19 for feature extraction, following the original Gatys paper
+                    approach. It generates high-quality stylized images with faithful content preservation.</li>
+                <li><strong>ViT Model</strong>: Leverages Vision Transformers for style representation, providing a
+                    different stylistic quality that can capture more global patterns.</li>
+            </ul>
+
+            <p class="mt-3"><strong>Style Intensity:</strong> The slider controls how strongly the style is applied.
+                Lower values preserve more content details, while higher values emphasize the style's colors and
+                patterns.</p>
+        </div>
+    </div>
+
+    <div class="footer">
+        <div class="container">
+            <p>&copy; 2025 Abdelrahman Mashaal</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Function to toggle style image upload section
+            function toggleStyleUpload() {
+                const transferMethod = document.querySelector('input[name="transfer_method"]:checked').value;
+                const styleUpload = document.getElementById('styleUpload');
+                const styleImage = document.getElementById('styleImage');
+
+                if (transferMethod === 'pretrained') {
+                    // Gray out the style upload section
+                    styleUpload.classList.add('disabled');
+                    styleUpload.style.opacity = '0.5';
+                    styleUpload.style.pointerEvents = 'none';
+                    styleImage.removeAttribute('required');
+
+                    // Add message about pre-trained model
+                    document.getElementById('styleUploadMessage').innerHTML =
+                        '<div class="alert alert-info mt-2">Using pre-trained New Realism style. No style image required.</div>';
+                } else {
+                    // Enable style upload section
+                    styleUpload.classList.remove('disabled');
+                    styleUpload.style.opacity = '1';
+                    styleUpload.style.pointerEvents = 'auto';
+                    styleImage.setAttribute('required', 'required');
+
+                    // Clear message
+                    document.getElementById('styleUploadMessage').innerHTML = '';
+                }
+            }
+
+            // Add listeners for transfer method toggle
+            document.querySelectorAll('input[name="transfer_method"]').forEach(radio => {
+                radio.addEventListener('change', toggleStyleUpload);
+            });
+
+            // Call on page load to set initial state
+            toggleStyleUpload();
+
+            // Image preview for content image
+            document.getElementById('contentImage').addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const preview = document.getElementById('contentPreview');
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Image preview for style image
+            document.getElementById('styleImage').addEventListener('change', function (e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function (e) {
+                        const preview = document.getElementById('stylePreview');
+                        preview.src = e.target.result;
+                        preview.classList.remove('hidden');
+                    }
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Update threshold value display
+            document.getElementById('styleThreshold').addEventListener('input', function (e) {
+                document.getElementById('thresholdValue').textContent = e.target.value;
+            });
+
+            // Form submission
+            document.getElementById('stylizeForm').addEventListener('submit', function (e) {
+                e.preventDefault();
+
+                // Check if using pre-trained method
+                const transferMethod = document.querySelector('input[name="transfer_method"]:checked').value;
+                const styleImage = document.getElementById('styleImage');
+
+                // If using pre-trained model but no style image is uploaded, create a dummy file
+                if (transferMethod === 'pretrained' && !styleImage.files.length) {
+                    // Create a dummy file to submit with the form
+                    // This is just to satisfy the form data requirements
+                    // The server will ignore this and use the default style
+                    fetch('/static/dummy-style.jpg')
+                        .then(response => response.blob())
+                        .then(blob => {
+                            const dummyFile = new File([blob], 'dummy-style.jpg', { type: 'image/jpeg' });
+                            const dataTransfer = new DataTransfer();
+                            dataTransfer.items.add(dummyFile);
+                            styleImage.files = dataTransfer.files;
+
+                            // Now continue with form submission
+                            processFormSubmission();
+                        })
+                        .catch(error => {
+                            console.error('Error creating dummy file:', error);
+                            // Just try to submit the form anyway
+                            processFormSubmission();
+                        });
+                } else {
+                    // Continue with normal form submission
+                    processFormSubmission();
+                }
+
+                // Function to handle the actual form submission
+                function processFormSubmission() {
+                    // Show loader
+                    document.getElementById('loaderContainer').classList.remove('hidden');
+                    document.getElementById('resultContainer').classList.add('hidden');
+
+                    // Get form data
+                    const formData = new FormData(document.getElementById('stylizeForm'));
+
+                    // Get style threshold for progress simulation
+                    const styleThreshold = parseFloat(document.getElementById('styleThreshold').value);
+
+                    // Simulate progress - neural style transfer takes time and this gives feedback
+                    let progress = 0;
+                    const progressBar = document.getElementById('progressBar');
+                    const progressText = document.getElementById('progressText');
+                    const modelType = document.querySelector('input[name="model_type"]:checked').value;
+
+                    // Different timing based on method
+                    let totalTime, updateInterval;
+
+                    if (transferMethod === 'pretrained') {
+                        // Pre-trained model is much faster
+                        totalTime = 3000; // 3 seconds
+                        updateInterval = 100; // update every 100ms
+                        progressText.textContent = "Applying pre-trained style model...";
+                    } else {
+                        // Direct optimization takes longer
+                        // Higher style threshold = more iterations = slower process
+                        totalTime = 5000 + (styleThreshold * 15000); // 5-20 seconds simulation based on threshold
+                        updateInterval = 200; // update every 200ms
+                    }
+
+                    // Different progress messages based on stage and method
+                    const directProgressMessages = [
+                        "Analyzing content image...",
+                        "Extracting style features...",
+                        "Beginning style optimization...",
+                        "Applying style patterns...",
+                        `Optimizing with ${modelType.toUpperCase()} features...`,
+                        "Refining details and textures...",
+                        "Balancing content and style...",
+                        "Final refinements...",
+                        "Processing complete!"
+                    ];
+
+                    const pretrainedProgressMessages = [
+                        "Loading pre-trained model...",
+                        "Analyzing content image...",
+                        "Applying New Realism style...",
+                        "Generating output...",
+                        "Processing complete!"
+                    ];
+
+                    const progressMessages = transferMethod === 'pretrained'
+                        ? pretrainedProgressMessages
+                        : directProgressMessages;
+
+                    const progressTimer = setInterval(() => {
+                        // Non-linear progress simulation (starts fast, slows in middle, speeds up at end)
+                        if (transferMethod === 'pretrained') {
+                            // Faster linear progress for pre-trained model
+                            progress += 100 / (totalTime / updateInterval);
+                        } else {
+                            // Non-linear progress for direct method
+                            if (progress < 20) {
+                                progress += 0.5;
+                            } else if (progress < 50) {
+                                progress += 0.3;
+                            } else if (progress < 80) {
+                                progress += 0.2;
+                            } else if (progress < 95) {
+                                progress += 0.1;
+                            } else {
+                                progress += 0.05;
+                            }
+                        }
+
+                        if (progress >= 100) {
+                            progress = 99.9; // Keep at 99.9% until actual completion
+                            clearInterval(progressTimer);
+                        }
+
+                        progressBar.style.width = `${progress}%`;
+
+                        // Update message based on progress
+                        const messageIndex = Math.min(Math.floor(progress / (100 / progressMessages.length)), progressMessages.length - 1);
+                        progressText.textContent = progressMessages[messageIndex];
+
+                    }, updateInterval);
+
+                    // Send request to server
+                    fetch('/stylize', {
+                        method: 'POST',
+                        body: formData
+                    })
+                        .then(response => {
+                            if (!response.ok) {
+                                clearInterval(progressTimer);
+                                return response.json().then(data => {
+                                    throw new Error(data.error || 'Error processing request');
+                                });
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            // Complete the progress bar
+                            clearInterval(progressTimer);
+                            progressBar.style.width = '100%';
+                            progressText.textContent = "Style transfer complete!";
+
+                            setTimeout(() => {
+                                // Hide loader
+                                document.getElementById('loaderContainer').classList.add('hidden');
+
+                                // Show result
+                                document.getElementById('resultImage').src = data.result;
+                                document.getElementById('downloadLink').href = data.result;
+                                document.getElementById('resultContainer').classList.remove('hidden');
+
+                                // Add details about the style transfer
+                                const detailsElement = document.getElementById('stylizationDetails');
+                                if (detailsElement) {
+                                    const methodName = data.transfer_method === 'pretrained' ? 'Pre-trained Model' : 'Direct Style Transfer';
+                                    detailsElement.innerHTML = `
+                                    <p>Style Transfer Details:</p>
+                                    <ul>
+                                        <li>Style Intensity: ${data.style_threshold}</li>
+                                        <li>Model Used: ${data.model_type.toUpperCase()}</li>
+                                        <li>Transfer Method: ${methodName}</li>
+                                    </ul>
+                                `;
+                                }
+
+                                // Scroll to result
+                                document.getElementById('resultContainer').scrollIntoView({
+                                    behavior: 'smooth'
+                                });
+                            }, 500);
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            clearInterval(progressTimer);
+                            document.getElementById('loaderContainer').classList.add('hidden');
+                            alert('Error: ' + error.message);
+                        });
+                }
+            });
+        });
+    </script>
+</body>
+
+</html>
