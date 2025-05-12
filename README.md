@@ -42,7 +42,7 @@ pip install -r requirements.txt
 
 3. **Download the pre-trained models:**
    - The pre-trained model files are too large for GitHub
-   - Download them from [this link](#) and place them in a folder named `kaggle_notebook_outputs`
+   - Download them from [this link](https://drive.google.com/file/d/1lVS8UKYG0tomg-iNNXfNs0sc_WPvMhaT/view?usp=sharing) and place them in a folder named `kaggle_notebook_outputs`
    - Required model files:
      - best_cnn_style_transfer_model.pth
      - best_vit_style_transfer_model.pth
